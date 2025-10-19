@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -244,7 +243,7 @@ Match(t);
 strcpy(presul, ProcesarOp());
 }
 else
-ErrorSintactico(t);
+ErrorSintactico();
 }
 /**********************Rutinas Semanticas******************************/
 REG_EXPRESION ProcesarCte(void)
@@ -283,8 +282,7 @@ Generar("Write", Extraer(&out), "Entera", "");
 }
 REG_EXPRESION GenInfijo(REG_EXPRESION e1, char * op, REG_EXPRESION e2)
 {
-/* Genera la instruccion para una operacion infija y construye un registro semantico con el resultado
-*/
+/* Genera la instruccion para una operacion infija y construye un registro semantico con el resultado */
 REG_EXPRESION reg;
 static unsigned int numTemp = 1;
 char cadTemp[TAMLEX] ="Temp&";
@@ -302,7 +300,7 @@ Generar(cadOp, Extraer(&e1), Extraer(&e2), cadTemp);
 strcpy(reg.nombre, cadTemp);
 return reg;
 }
-/***************Funciones Auxiliares**********************************/
+/**********************************Funciones Auxiliares**********************************/
 void Match(TOKEN t)
 {
 if ( !(t == ProximoToken()) ) ErrorSintactico();
@@ -426,7 +424,7 @@ estado= tabla[estado][col];
         i++;
     }
 }    
-    while( !estadoFinal(estado) && !estado == 14);
+    while( !estadoFinal(estado) && !(estado == 14));
 
     buffer[i] = '\0';
     
@@ -455,7 +453,7 @@ estado= tabla[estado][col];
 }
 return 0;
 }
-int esstadoFinal(int e)
+int estadoFinal(int e)
 {
     if( e==0||e==1||e==11||e==14) return 0;
     return 1;
@@ -476,5 +474,4 @@ int columna(int c)
     if ( isspace(c) ) return 11;
     return 12;
 }
-/*************Fin Scanner*****/
-
+/*************Fin Scanner*************/
