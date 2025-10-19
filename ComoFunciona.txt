@@ -1,0 +1,3 @@
+1. Compilar el codigo fuente de c. Depende del compilador que tengan instalado. En mi caso uso "gcc archivoFuente.c -o compilador"
+2. Crear un archivo de extension .m con el codigo en micro
+3. Correr el codigo fuente de c enviandole el archivo con el codigo micro "./compilador prueba_cte.m"
