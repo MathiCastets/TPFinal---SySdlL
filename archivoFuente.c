@@ -237,13 +237,12 @@ void OperadorAditivo(char * presul)
 {
 /* <operadorAditivo> -> SUMA #procesar_op | RESTA #procesar_op */
 TOKEN t = ProximoToken();
-if ( t == SUMA || t == RESTA )
-{
-Match(t);
-strcpy(presul, ProcesarOp());
+if ( t == SUMA || t == RESTA ){
+    Match(t);
+    strcpy(presul, ProcesarOp());
+}else{
+    ErrorSintactico();
 }
-else
-ErrorSintactico();
 }
 /**********************Rutinas Semanticas******************************/
 REG_EXPRESION ProcesarCte(void)
