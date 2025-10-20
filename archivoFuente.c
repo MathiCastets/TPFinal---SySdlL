@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#define NUMESTADOS 15
-#define NUMCOLS 13
+#define NUMESTADOS 15+15 //"Memoria" del scanner
+#define NUMCOLS 13+5
 #define TAMLEX 32 + 1
 #define TAMNOM 20 + 1
 /******************Declaraciones Globales*************************/
@@ -23,14 +23,50 @@ typedef enum
     SUMA,
     RESTA,
     FDT,
-    ERRORLEXICO
+    ERRORLEXICO,
+
+    /** NUEVOS TOKENS**/
+    REAL,
+    CARACTER,
+    CONSTANTEREAL,
+    CONSTANTECARACTER,
+    MIENTRAS,
+    FINMIENTRAS,
+    SI,
+    //no se si son necesarias, o si basta solo con el si!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    SINO,
+    FINSI,
+    //Fin de duda!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    REPETIR,
+    HASTA,
+    MAYOR,
+    MENOR,
+    IGUAL,
+    DISTINTO,
+    MAYORIGUAL,
+    MENORIGUAL
 } TOKEN;
 typedef struct
 {
     char identifi[TAMLEX];
     TOKEN t; /* t=0, 1, 2, 3 Palabra Reservada, t=ID=4 Identificador */
 } RegTS;
-RegTS TS[1000] = {{"inicio", INICIO}, {"fin", FIN}, {"leer", LEER}, {"escribir", ESCRIBIR}, {"$", 99}};
+RegTS TS[1000] = { //Son las palabras reservadas del lenguaje
+    {"inicio", INICIO}, {"fin", FIN}, 
+    {"leer", LEER}, 
+    {"escribir", ESCRIBIR}, 
+
+    {"real", REAL}, 
+    {"caracter", CARACTER},
+    {"si", SI},  
+    {"sino", SINO}, 
+    {"finsi", FINSI}, 
+    {"mientras", MIENTRAS}, 
+    {"finmientras", FINMIENTRAS},
+    {"repetir", REPETIR}, 
+    {"hasta", HASTA},  
+    //CENTINELA - FIN DE TABLA
+    {"$", 99}};
 typedef struct
 {
     TOKEN clase;
@@ -382,9 +418,12 @@ int Buscar(char *id, RegTS *TS, TOKEN *t)
 void Colocar(char *id, RegTS *TS)
 {
     /* Agrega un identificador a la TS */
-    int i = 4;
+    //int i = 4; HARDCODEADO, NO ME SIRVE
+    int i =0;
+
     while (strcmp("$", TS[i].identifi))
         i++;
+
     if (i < 999)
     {
         strcpy(TS[i].identifi, id);
@@ -420,22 +459,37 @@ void Asignar(REG_EXPRESION izq, REG_EXPRESION der)
 /**************************Scanner************************************/
 TOKEN scanner()
 {
-    int tabla[NUMESTADOS][NUMCOLS] = {{1, 3, 5, 6, 7, 8, 9, 10, 11, 14, 13, 0, 14},
-                                      {1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 12, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14}};
-
+    int tabla[NUMESTADOS][NUMCOLS] = {
+        {1, 3, 5, 6, 7, 8, 9, 10, 11, 21, 15, 18, 25, 22, 28, 13, 0, 14},
+        {1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 16, 4, 4, 4, 4, 4, 4, 4},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 12, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 16, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {17, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 14, 19, 19, 19, 14, 19, 19},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 20, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {24, 24, 24, 24, 24, 24, 24, 24, 24, 23, 24, 24, 24, 24, 24, 24, 24, 24},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {27, 27, 27, 27, 27, 27, 27, 27, 27, 26, 27, 27, 27, 27, 27, 27, 27, 27},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 29, 14, 14, 14, 14, 14, 14, 14, 14},
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14}};
     int car;
     int col;
     int estado = 0;
@@ -458,14 +512,14 @@ TOKEN scanner()
     switch (estado)
     {
     case 2:
-        if (col != 11)
+        if (col != 16)
         {
             ungetc(car, in);
             buffer[i - 1] = '\0';
         }
         return ID;
     case 4:
-        if (col != 11)
+        if (col != 16)
         {
             ungetc(car, in);
             buffer[i - 1] = '\0';
@@ -489,12 +543,42 @@ TOKEN scanner()
         return FDT;
     case 14:
         return ERRORLEXICO;
+    case 17:
+        if (col != 16)
+        {
+            ungetc(car, in);
+            buffer[i - 1] = '\0';
+        }
+        return CONSTANTEREAL;
+    case 20: // No es necesario ungetc, ' cierra el token
+        return CONSTANTECARACTER;
+    case 21:
+        return IGUAL;
+    case 23:
+        return MAYORIGUAL;
+    case 24:
+        if (col != 16)
+        {
+            ungetc(car, in);
+            buffer[i - 1] = '\0';
+        }
+        return MAYOR;     
+    case 26: 
+        return MENORIGUAL;
+    case 27:
+        if(col != 16){
+            ungetc(car, in);
+            buffer[i - 1] = '\0';
+        }
+    return MENOR;
+    case 29: // FIN_DISTINTO
+        return DISTINTO;
     }
     return 0;
 }
 int estadoFinal(int e)
 {
-    if (e == 0 || e == 1 || e == 3 || e == 11 || e == 14)
+    if (e == 0 || e == 1 || e == 3 || e == 11 || e == 14 || e == 15 || e == 16 || e == 18 || e == 19 || e == 22 || e == 25 || e == 28) //Estados NO finales
         return 0;
     return 1;
 }
@@ -520,10 +604,20 @@ int columna(int c)
         return 8;
     if (c == '=')
         return 9;
-    if (c == EOF)
+    if(c == '.')
         return 10;
+    if(c == '\'')
+        return 11;  
+    if(c == '<')
+        return 12;
+    if(c == '>')
+        return 13;    
+    if(c == '!')
+        return 14;    
+    if (c == EOF)
+        return 15;
     if (isspace(c))
-        return 11;
-    return 12;
+        return 16;
+    return 17;
 }
 /*************Fin Scanner*************/
