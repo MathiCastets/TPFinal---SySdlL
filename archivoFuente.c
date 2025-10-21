@@ -26,6 +26,7 @@ typedef enum
     ERRORLEXICO,
 
     /** NUEVOS TOKENS**/
+    ENTERO,
     REAL,
     CARACTER,
     CONSTANTEREAL,
@@ -33,10 +34,8 @@ typedef enum
     MIENTRAS,
     FINMIENTRAS,
     SI,
-    //no se si son necesarias, o si basta solo con el si!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    SINO,
+    SINO, //no se si es necesaria, o si basta solo con el si!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     FINSI,
-    //Fin de duda!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     REPETIR,
     HASTA,
     MAYOR,
@@ -46,16 +45,26 @@ typedef enum
     MAYORIGUAL,
     MENORIGUAL
 } TOKEN;
+
+typedef enum{ //Tipos de datos que el programador puede definir para luego trabajar con ellos
+    TIPOENTERO,
+    TIPOREAL,
+    TIPOCARACTER,
+    TIPONULO //Para manejo de errores
+} TIPO;
 typedef struct
 {
     char identifi[TAMLEX];
     TOKEN t; /* t=0, 1, 2, 3 Palabra Reservada, t=ID=4 Identificador */
+    TIPO tipo; //Permite saber si el tipo de dato es ENTERO, REAL o CARACTER
 } RegTS;
 RegTS TS[1000] = { //Son las palabras reservadas del lenguaje
-    {"inicio", INICIO}, {"fin", FIN}, 
+    {"inicio", INICIO}, 
+    {"fin", FIN}, 
     {"leer", LEER}, 
     {"escribir", ESCRIBIR}, 
-
+    //Nuevas palabras reservadas
+    {"entero", ENTERO},
     {"real", REAL}, 
     {"caracter", CARACTER},
     {"si", SI},  
@@ -65,13 +74,13 @@ RegTS TS[1000] = { //Son las palabras reservadas del lenguaje
     {"finmientras", FINMIENTRAS},
     {"repetir", REPETIR}, 
     {"hasta", HASTA},  
-    //CENTINELA - FIN DE TABLA
-    {"$", 99}};
+    {"$", 99}};//CENTINELA - FIN DE TABLA
 typedef struct
 {
     TOKEN clase;
     char nombre[TAMLEX];
     int valor;
+    TIPO tipo; //Permite saber si el tipo de dato es ENTERO, REAL o CARACTER
 } REG_EXPRESION;
 char buffer[TAMLEX];
 TOKEN tokenActual;
@@ -82,6 +91,10 @@ int columna(int c);
 int estadoFinal(int e);
 void Objetivo(void);
 void Programa(void);
+void ListaDeclaraciones(void);
+void Declaracion(void);
+TIPO TipoDato(void);
+void ListaDeIds(TIPO tipo);
 void ListaSentencias(void);
 void Sentencia(void);
 void ListaIdentificadores(void);
@@ -103,7 +116,7 @@ void ErrorSintactico();
 void Generar(char *co, char *a, char *b, char *c);
 char *Extraer(REG_EXPRESION *preg);
 int Buscar(char *id, RegTS *TS, TOKEN *t);
-void Colocar(char *id, RegTS *TS);
+void Colocar(char *id, RegTS *TS, TIPO tipo);
 void Chequear(char *s);
 void Comenzar(void);
 void Terminar(void);
@@ -162,8 +175,67 @@ void Programa(void)
     /* <programa> -> #comenzar INICIO <listaSentencias> FIN */
     Comenzar(); // invocacion a las rutinas semanticas, en la gramatica se coloca con #
     Match(INICIO);
+    ListaDeclaraciones(); // Se encarga de inicializar las variables (necesario para establecer sus tipos)
     ListaSentencias();
     Match(FIN);
+}
+
+void ListaDeclaraciones(void) //Se encarga de comprobar si el siguiente token es ENTERO, REAL o CARACTER
+{
+    /* <ListaDeclaraciones> -> <Declaracion> {<Declaracion>} */
+    while (ProximoToken() == ENTERO || ProximoToken() == REAL || ProximoToken() == CARACTER)
+    {
+        Declaracion();
+    }
+}
+
+void Declaracion(void) //Procesa una linea de declaracion
+{
+    TIPO tipo = TipoDato();
+    ListaDeIds(tipo);
+    Match(PUNTOYCOMA);
+}
+
+TIPO TipoDato(void) // Funcion para saber que tipo se esta declarando y consumir el TOKEN
+{
+    TOKEN t = ProximoToken();
+    if(t == ENTERO){
+        Match(ENTERO);
+        return TIPOENTERO;
+    }
+    else if(t == REAL)
+    {
+        Match(REAL);
+        return TIPOREAL;
+    }
+    else if(t == CARACTER)
+    {
+        Match(CARACTER);
+        return TIPOCARACTER;
+    } else 
+    {
+        ErrorSintactico();
+        return TIPONULO;
+    }
+    
+}
+
+void ListaDeIds(TIPO tipo) //Procesa la lista de variables
+{
+    /* <listaDeIds> -> ID #colocar_tipo {COMA ID #colocar_tipo} */
+    TOKEN t;
+    char bufferId[TAMLEX];
+
+    Match(ID);
+    strcpy(bufferId, buffer);
+    Colocar(bufferId, TS, tipo);
+    for( t = ProximoToken(); t == COMA; t = ProximoToken())
+    {
+        Match(COMA);
+        Match(ID);
+        strcpy(bufferId, buffer);
+        Colocar(bufferId, TS, tipo);
+    }
 }
 void ListaSentencias(void)
 {
@@ -415,7 +487,7 @@ int Buscar(char *id, RegTS *TS, TOKEN *t)
     }
     return 0;
 }
-void Colocar(char *id, RegTS *TS)
+void Colocar(char *id, RegTS *TS, TIPO tipo)
 {
     /* Agrega un identificador a la TS */
     //int i = 4; HARDCODEADO, NO ME SIRVE
@@ -428,6 +500,7 @@ void Colocar(char *id, RegTS *TS)
     {
         strcpy(TS[i].identifi, id);
         TS[i].t = ID;
+        TS[i].tipo = tipo; //Guardamos el tipo en la TS
         strcpy(TS[++i].identifi, "$");
     }
 }
@@ -436,10 +509,19 @@ void Chequear(char *s)
     /* Si la cadena No esta en la Tabla de Simbolos la agrega,
     y si es el nombre de una variable genera la instruccion */
     TOKEN t;
-    if (!Buscar(s, TS, &t))
+    if (strncmp(s, "Temp&", 5) == 0) // Si es una variable temporal
+    { 
+        if (!Buscar(s, TS, &t))
+        {
+            Colocar(s, TS, TIPOENTERO);//Declaracion por defecto, luego se le asignara el tipo correcto
+            Generar("Declara", s, "Entera", ""); //NO ME CONVENCE --- PENSAR EN ALTERNATIVA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        }
+    } else //Si es una variable declarada por el usuario en las Declaraciones
     {
-        Colocar(s, TS);
-        Generar("Declara", s, "Entera", "");
+        if (!Buscar(s, TS, &t))
+        {
+            printf("Error Semantico: Variable '%s' no declarada.\n", s);
+        }
     }
 }
 void Comenzar(void)
