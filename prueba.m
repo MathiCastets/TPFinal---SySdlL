@@ -1,7 +1,14 @@
-inicio
-    leer(A, B);
-    Suma := A + B;
-    Resta := A - B;
-    Resultado := Suma + Resta - 100;
-    escribir(Suma, Resta, Resultado);
+inicio 
+entero A;
+real numDecimal;
+caracter letra;
+numDecimal := 3.14;
+letra := 'a';
+leer(A);
+si A > 10 entonces
+escribir(numDecimal);
+sino
+escribir(A);
+finsi
+escribir(letra);
 fin
