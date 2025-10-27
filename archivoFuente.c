@@ -36,7 +36,7 @@ typedef enum
     FINMIENTRAS,
     SI,
     ENTONCES,
-    SINO, //no se si es necesaria, o si basta solo con el si!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    SINO,
     FINSI,
     REPETIR,
     HASTA,
@@ -545,43 +545,52 @@ REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2)
     static unsigned int numTemp = 1;
     char cadTemp[TAMLEX] = "Temp&";
     char cadNum[TAMLEX];
-    char cadOp[TAMLEX];
+    char cadOp[TAMLEX]; //codigo de operacion final
 
-    if (op[0] == '+') strcpy(cadOp, "Sumar");
-    else if (op[0] == '-') strcpy(cadOp, "Restar");
-    else if (strcmp(op, ">") == 0) strcpy(cadOp, "Mayor");
-    else if (strcmp(op, "<") == 0) strcpy(cadOp, "Menor");
-    else if (strcmp(op, "=") == 0) strcpy(cadOp, "Igual");
-    else if (strcmp(op, "<=") == 0) strcpy(cadOp, "MenorIgual");
-    else if (strcmp(op, ">=") == 0) strcpy(cadOp, "MayorIgual");
-    else if (strcmp(op, "!=") == 0) strcpy(cadOp, "Distinto");
-    else {
-        // Manejo de error si el operador es desconocido
-        strcpy(cadOp, "ErrorOp");
-    }
+    // ************ LÓGICA DE TIPO PARA EL RESULTADO ************ //
+    TIPO tipo1 = ObtenerTipoExp(&e1); 
+    TIPO tipo2 = ObtenerTipoExp(&e2);
+    TIPO tipoResultado;
 
-//Generacion de nombre de variable temporal
+    //Generacion de nombre de variable temporal
     sprintf(cadNum, "%d" , numTemp);
     numTemp ++;
     strcat(cadTemp, cadNum);
 
-    // ************ LÓGICA DE TIPO PARA EL RESULTADO ************
-    TIPO tipo1 = ObtenerTipoExp(&e1); 
-    TIPO tipo2 = ObtenerTipoExp(&e2);
-    TIPO tipoResultado = TIPOENTERO;
+     if(tipo1 == TIPOCARACTER || tipo2 == TIPOCARACTER || tipo1 == TIPONULO || tipo2 == TIPONULO){ //Validacion. Solo operamos con numeros
+            printf("Error Semantico: tipos incompatibles (%s, %s) para el operador '%s'.\n", TipoCadena(tipo1), TipoCadena(tipo2), op);
+            //exit(1);
+    }
 
-    // Promoción de tipos:
-    if (strcmp(cadOp, "Sumar") == 0 || strcmp(cadOp, "Restar") == 0) {
-        // Si alguno es REAL, el resultado es REAL.
-        if (tipo1 == TIPOREAL || tipo2 == TIPOREAL) {
+    if (op[0] == '+' || op[0] == '-'){ // OPERACIONES ARITMETICAS
+
+        // ******* Operaciones Aritmeticas ******* //
+        if(tipo1 == TIPOREAL || tipo2 == TIPOREAL){ //"Promocion" de tipos. Si uno de los dos numeros es real, el resultado sera real.
             tipoResultado = TIPOREAL;
-        } else {
-            tipoResultado = TIPOENTERO; // Si ambos son enteros o caracteres, el resultado es entero.
+            if (op[0] == '+') {
+                strcpy(cadOp, "SumarReal");
+            } else {
+                strcpy(cadOp, "RestarReal");
+            }
+        } else { //AMBOS son enteros
+        tipoResultado = TIPOENTERO;
+            if (op[0] == '+') strcpy(cadOp, "Sumar");
+            else if (op[0] == '-') strcpy(cadOp, "Restar");
         }
-    } 
-    else 
-    {
-        tipoResultado = TIPOENTERO; 
+    } else {    // ******* Operaciones Logicas ******* //
+        tipoResultado = TIPOENTERO; // Siempre es 0 o 1
+
+        if (strcmp(op, ">") == 0) strcpy(cadOp, "Mayor");
+        else if (strcmp(op, "<") == 0) strcpy(cadOp, "Menor");
+        else if (strcmp(op, "=") == 0) strcpy(cadOp, "Igual");
+        else if (strcmp(op, "<=") == 0) strcpy(cadOp, "MenorIgual");
+        else if (strcmp(op, ">=") == 0) strcpy(cadOp, "MayorIgual");
+        else if (strcmp(op, "!=") == 0) strcpy(cadOp, "Distinto");
+        else {
+            // Manejo de error ante operador desconocido
+            strcpy(cadOp, "ErrorOp");
+        }
+
     }
     
     // Chequear (registrar) la variable temporal con el TIPO CORRECTO
@@ -593,6 +602,7 @@ REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2)
     // Asignar el tipo y nombre al registro de resultado
     strcpy(reg.nombre, cadTemp);
     reg.tipo = tipoResultado; 
+    reg.clase = ID;
     return reg;
 }
 /**********************************Funciones Auxiliares**********************************/
@@ -757,7 +767,7 @@ void Asignar(REG_EXPRESION izq, REG_EXPRESION der)
     
     if (tipo_izq == TIPONULO)
     {
-        return;
+        return; //El error se maneja en chequear()
     }
 
     TIPO tipo_der = ObtenerTipoExp(&der);
@@ -772,13 +782,13 @@ void Asignar(REG_EXPRESION izq, REG_EXPRESION der)
     // CASO 2: Promoción permitida (real = entero)
     if (tipo_izq == TIPOREAL && tipo_der == TIPOENTERO)
     {
-        // ¡Permitido! La máquina virtual manejará la conversión.
         Generar("Almacena", Extraer(&der), izq.nombre, "");
         return;
     }
 
     //CASOS restantes: son errores
     printf("Error Semantico: No se puede asignar un %s a una variable de tipo %s.\n", TipoCadena(tipo_der), TipoCadena(tipo_izq));
+    //exit(1);
 }
 
 char *TipoCadena(TIPO tipo)

@@ -8,5 +8,4 @@ inicio
   r := r + e; 
   escribir(r); 
 
-  e := e + r;
 fin
