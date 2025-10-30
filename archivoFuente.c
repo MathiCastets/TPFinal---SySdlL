@@ -60,6 +60,7 @@ typedef struct
     TOKEN t; /* t=0, 1, 2, 3 Palabra Reservada, t=ID=4 Identificador */
     TIPO tipo; //Permite saber si el tipo de dato es ENTERO, REAL o CARACTER
 } RegTS;
+
 RegTS TS[1000] = { //Son las palabras reservadas del lenguaje
     {"inicio", INICIO}, 
     {"fin", FIN}, 
@@ -103,10 +104,10 @@ int columna(int c);
 int estadoFinal(int e);
 void Objetivo(void);
 void Programa(void);
-void ListaDeclaraciones(void);
-void Declaracion(void);
-TIPO TipoDato(void);
-void ListaDeIds(TIPO tipo);
+void ListaDeclaraciones(void); //Nueva funcion para la seccion de declaraciones
+void Declaracion(void); // Nueva funcion para el analisis de las declaraciones
+TIPO TipoDato(void); // Nueva funcion para trabajar con los TIPOS de los datos
+void ListaDeIds(TIPO tipo); // Nueva funcion para la lista de identificadores
 void ListaSentencias(void);
 void Sentencia(void);
 void ListaIdentificadores(void);
@@ -146,6 +147,7 @@ void Saltar(char *etiqueta);
 void ChequearCondicion(REG_EXPRESION cond, char *etiquetaV, char *etiquetaF);
 
 /***************************Programa Principal************************/
+/*Valida los argumentos de la linea de comandos, abre el archivo fuente e inicia el proceso de compilacion llamando a Objetivo(). Retorna 0 si la compilacion fue exitosa*/
 int main(int argc, char *argv[])
 {
     TOKEN tok;
@@ -186,6 +188,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 /**********Procedimientos de Analisis Sintactico (PAS) *****************/
+/*Es la funcion "raiz" del analisis sintactico. Llama a Programa() y si todo va bien, verifica el FDT y llama a terminar*/
 void Objetivo(void)
 {
     /* <objetivo> -> <programa> FDT #terminar */
@@ -193,6 +196,7 @@ void Objetivo(void)
     Match(FDT);
     Terminar();
 }
+/* Llama a rutinas de inicializacion, verifica INICIO, parsea las declaraciones y sentencias, y verifica el FIN */
 void Programa(void)
 {
     /* <programa> -> #comenzar INICIO <listaSentencias> FIN */
@@ -203,23 +207,27 @@ void Programa(void)
     Match(FIN);
 }
 
-void ListaDeclaraciones(void) //Se encarga de comprobar si el siguiente token es ENTERO, REAL o CARACTER
+/* Se encarga de parsear la seccion opcional de declaracion de variables. Consume cero o mas declaraciones llamando a Declaracion() mientras el siguiente token sea valido*/
+void ListaDeclaraciones(void)
 {
-    /* <ListaDeclaraciones> -> <Declaracion> {<Declaracion>} */
-    while (ProximoToken() == ENTERO || ProximoToken() == REAL || ProximoToken() == CARACTER)
+    /* <ListaDeclaraciones> -> {<Declaracion>} */
+    while (ProximoToken() == ENTERO || ProximoToken() == REAL || ProximoToken() == CARACTER) //Se encarga de comprobar si el siguiente token es ENTERO, REAL o CARACTER
     {
         Declaracion();
     }
 }
 
+/* Parsea una unica linea de declaracion de variables. Consume el tipo de dato, la lista de identificadores y el punto y coma final*/
 void Declaracion(void) //Procesa una linea de declaracion
 {
+    // <declaracion> -> <tipoDato> <listaDeIds> ;
     TIPO tipo = TipoDato();
     ListaDeIds(tipo);
     Match(PUNTOYCOMA);
 }
 
-TIPO TipoDato(void) // Funcion para saber que tipo se esta declarando y consumir el TOKEN
+/* Parsea y consume la palabra clave (TOKEN) del tipo de dato. <tipoDato> -> ENTERO | REAL | CARACTER */
+TIPO TipoDato(void)
 {
     TOKEN t = ProximoToken();
     if(t == ENTERO){
@@ -243,15 +251,18 @@ TIPO TipoDato(void) // Funcion para saber que tipo se esta declarando y consumir
     
 }
 
+/*  Parsea una lista de identificadores separados por comas (,) en una declaracion.
+    Recibe el tipo de dato y llama a Colocar() para agregar cada ID a la TS con ese tipo.
+*/
 void ListaDeIds(TIPO tipo) //Procesa la lista de variables
 {
-    /* <listaDeIds> -> ID #colocar_tipo {COMA ID #colocar_tipo} */
     TOKEN t;
-    char bufferId[TAMLEX];
+    char bufferId[TAMLEX]; // Variable local para guardar el nombre del ID
 
-    Match(ID);
-    strcpy(bufferId, buffer);
-    Colocar(bufferId, TS, tipo);
+    Match(ID); //Espera y consume el primer ID
+    strcpy(bufferId, buffer); //Guarda el nombre del ID en bufferId antes de llamar a ProximoToken 
+    Colocar(bufferId, TS, tipo); //Añada el nombre junto con su tipo en la TS
+    //Mientras el siguiente token sea una coma, se consumes las distintas ID y se agregan en la tabla
     for( t = ProximoToken(); t == COMA; t = ProximoToken())
     {
         Match(COMA);
@@ -260,6 +271,7 @@ void ListaDeIds(TIPO tipo) //Procesa la lista de variables
         Colocar(bufferId, TS, tipo);
     }
 }
+/* Parsea una secuencia de una o mas sentencias. Llama a Sentencia() mientras el siguiente TOKEN sea uno que puede iniciar una sentencia*/
 void ListaSentencias(void)
 {
     /* <listaSentencias> -> <sentencia> {<sentencia>} */
@@ -269,6 +281,8 @@ void ListaSentencias(void)
     
     }  // Mientras el proximo token sea alguno de los que inician una sentencia, sigo procesando sentencias
 }  
+
+/* Parsea una unica sentencia. Utiliza ProximoToken() para determinar que tipo de sentencia es y llama a las funciones correspondientes para parsearla y generar el codigo*/
 void Sentencia(void)
 {
     TOKEN tok = ProximoToken();
@@ -356,6 +370,7 @@ void Sentencia(void)
     }
 }
 
+/* Parsea una lista de identificadores separados por comas en una sentencia LEER. Llama a Identificador() y a la rutina semantica Leer() para cada ID.*/
 void ListaIdentificadores(void)
 {
     /* <listaIdentificadores> -> <identificador> #leer_id {COMA <identificador> #leer_id} */
@@ -370,12 +385,16 @@ void ListaIdentificadores(void)
         Leer(reg);
     }
 }
+
+/* Parsea un identificador (ID). Consume el token ID y llama a ProcesarId() para construir el registro semantico correspondiente.*/
 void Identificador(REG_EXPRESION *presul)
 {
     /* <identificador> -> ID #procesar_id */
     Match(ID);
     *presul = ProcesarId();
 }
+
+/* Parsea una lista de expresiones separadas por comas en una sentencia de tipo ESCRIBIR. Llama a Expresion() y a la rutina semantica Escribir() para cada expresion */
 void ListaExpresiones(void)
 {
     /* <listaExpresiones> -> <expresion> #escribir_exp {COMA <expresion> #escribir_exp} */
@@ -390,6 +409,9 @@ void ListaExpresiones(void)
         Escribir(reg);
     }
 }
+
+/*  Parsea expresiones aritmeticas (sumas y restas). Llama a Primaria() para los operandos y GenInfijo() para generar el codigo. 
+    En el puntero presul se guarda el resultado final de la expresion*/
 void Expresion(REG_EXPRESION *presul)
 
 {
@@ -407,7 +429,8 @@ void Expresion(REG_EXPRESION *presul)
     *presul = operandoIzq;
 }
 
-//Nuevas funciones para estructuras de control
+/*  Parsea una condicion booleana para las estructuras de control.
+    Llama a Expresion() para cada lado y a GenInfijo() para generar el codigo de comparacion, cuyo resultado (0 o 1) se guarda en presul */
 void Condicion (REG_EXPRESION *presul)
 {
     /*<condicon> -> <expresion> <operadorRelacional> <expresion>*/
@@ -423,6 +446,7 @@ void Condicion (REG_EXPRESION *presul)
     reg = GenInfijo(exp1, op, exp2);
     *presul = reg;
 }
+/*  Parsea y consume un operador relacional (>,<, =, <=, >=, !=). Guarda la cadena del operador en presul.*/
 void OperadorRelacional (char *presul)
 {
     TOKEN t = ProximoToken();
@@ -437,6 +461,7 @@ void OperadorRelacional (char *presul)
     }
 }
 
+/* Parsea el nivel mas bajo de una expresión, como un identificador, una constante o una expresion entre parentesis.  */
 void Primaria(REG_EXPRESION *presul)
 {
     TOKEN tok = ProximoToken();
@@ -461,6 +486,8 @@ void Primaria(REG_EXPRESION *presul)
         break; 
     }
 }
+/*  Parsea y consume un operador aditivo (+ o -). Guarda la cadena del op. en presul.
+*/
 void OperadorAditivo(char *presul)
 {
     /* <operadorAditivo> -> SUMA #procesar_op | RESTA #procesar_op */
@@ -476,6 +503,8 @@ void OperadorAditivo(char *presul)
     }
 }
 /**********************Rutinas Semanticas******************************/
+/*  Rutina semantica para procesar constantes (enteras, reales, caracteres). Construye y devuelve un REG_EXPRESION con la clase, nombre (cadena), tipo 
+    (TIPOENTERO, TIPOREAL, TIPOCARACTER) y valor (si aplica). */
 REG_EXPRESION ProcesarCte(void)
 {
     /* Convierte cadena que representa numero a numero entero y construye un registro semantico */
@@ -501,6 +530,10 @@ REG_EXPRESION ProcesarCte(void)
     return reg;
 }
 
+/* Rutina semantica para procesar los identificadores.
+    Llama Chequear() para verificar que el ID este declarado. Llama a Buscar() para obtener su tipo de la TS.
+    Construye y devuelve un REG_EXPRESION, con su clase ID, nombre y tipo
+*/
 REG_EXPRESION ProcesarId(void)
 {
     /* Declara ID y construye el correspondiente registro semantico */
@@ -515,11 +548,14 @@ REG_EXPRESION ProcesarId(void)
     reg.tipo = tipo;
     return reg;
 }
+/* Rutina semantica para procesar operadores. Devuelve la cadena del operador leida por el scanner, almacenada en el buffer.*/
 char *ProcesarOp(void)
 {
     /* Declara OP y construye el correspondiente registro semantico */
     return buffer;
 }
+
+/* Rutina semantica para generar la instruccion de lectura. Obitene el tipo de la variable in y llama a Generar().*/
 void Leer(REG_EXPRESION in)
 {
     /* Genera la instruccion para leer */
@@ -531,6 +567,8 @@ void Leer(REG_EXPRESION in)
     }
     Generar("Read", in.nombre, TipoCadena(tipo), "");
 }
+
+/* Rutina semantica para generar la instruccion de escritura. Obtiene el tipo de la expresion out y llama a Generar()*/
 void Escribir(REG_EXPRESION out)
 {
     /* Genera la instruccion para escribir */
@@ -538,6 +576,15 @@ void Escribir(REG_EXPRESION out)
     Generar("Write", Extraer(&out), TipoCadena(tipo), "");
 }
 
+/*  Rutina semantica para generar codigo para las operaciones INFIJAS.
+    Realiza comprobacion de tipos, determina el tipo resultante.
+    Selecciona el codigo de operacion adecuado.
+    Declara una variable temporal con ChequearTemporal(), general la instruccion y devuelve un REG_EXPRESION que respresenta el resultado temporal
+    * e1 es el REG_EXPRESION del operador izquierdo
+    * op es la cadena con el operador
+    * e2 es el REG_EXPRESION del operador derecho.
+    * Retorna un REG_EXPRESION que representa la variable temporal con el resultado
+    */
 REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2)
 {
     /* Genera la instruccion para una operacion infija y construye un registro semantico con el resultado */
@@ -606,12 +653,15 @@ REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2)
     return reg;
 }
 /**********************************Funciones Auxiliares**********************************/
+/* Consume el siguiente token si coincide con el token esperado 't'. Si no coincide, llama a ErrotSintactico(). Tambien actualiza el flagToken*/
 void Match(TOKEN t)
 {
     if (!(t == ProximoToken()))
         ErrorSintactico();
     flagToken = 0;
 }
+/* Retorna el siguiente token del flujo de entrada. Usa el flagToken para llamar al scanner() solo si es necesario y almacena el token en tokenActual. 
+    Realiza la busqueda de palabras reservadas*/
 TOKEN ProximoToken()
 {
     if (!flagToken)
@@ -627,26 +677,43 @@ TOKEN ProximoToken()
     }
     return tokenActual;
 }
+
+/* Reporta un error lexico y termina la compilacion*/
 void ErrorLexico()
 {
     printf("Error Lexico\n");
     exit(1);
 }
+/* Reporta un error sintactico y termina la compilacion*/
 void ErrorSintactico()
 {
     printf("Error Sintactico\n");
     exit(1);
 }
+
+/*  Imprime una instruccion de codigo intermedio
+    * co -> codigo de operacion
+    * -> a Primer operando (o destino)
+    * -> b Segundo operando
+    * -> c Tercer operando (o destino)
+*/
 void Generar(char *co, char *a, char *b, char *c)
 {
     /* Produce la salida de la instruccion para la MV por stdout */
     printf("%s %s%c%s%c%s\n", co, a, ',', b, ',', c);
 }
+
+/* Extra y devuelve el nombre(CADENA) de un REG_EXPRESION. Retorna un puntero a la cadena con el nombre*/
 char *Extraer(REG_EXPRESION *preg)
 {
     /* Retorna la cadena del registro semantico */
     return preg->nombre;
 }
+/*  Busca un identificador 'id' en la Tabla de Símbolos (TS). Retorna 1 si se encontro, 0 en caso contrario.
+    *id -> cadena con el identificador a buscar
+    * TS -> puntero a la TS
+    *  t -> puntero a token donde se guardara el token si se encuentra
+*/
 int Buscar(char *id, RegTS *TS, TOKEN *t)
 {
     /* Determina si un identificador esta en la TS */
@@ -662,6 +729,11 @@ int Buscar(char *id, RegTS *TS, TOKEN *t)
     }
     return 0;
 }
+
+/*  Agrega un nuevo identificador 'id' con su 'tipo' a la TS.
+    Verifica si ya existe ese id (evita duplicados)
+    Genera la instruccion "Declara"
+    */
 void Colocar(char *id, RegTS *TS, TIPO tipo)
 {
     /* Agrega un identificador a la TS */
@@ -687,12 +759,14 @@ void Colocar(char *id, RegTS *TS, TIPO tipo)
         strcpy(TS[++i].identifi, "$");
     }
 }
+
+/* Verifica si un identificador s esta declarado en la TS. Si no lo esta, reporta un Error Semantico */
 void Chequear(char *s)
 {
     /* Si la cadena No esta en la Tabla de Simbolos la agrega,
     y si es el nombre de una variable genera la instruccion */
     TOKEN t;
-    if (strncmp(s, "Temp&", 5) != 0) // Si es una variable temporal
+    if (strncmp(s, "Temp&", 5) != 0) // Si NO es una variable temporal
     { 
         if (!Buscar(s, TS, &t))
         {
@@ -702,6 +776,9 @@ void Chequear(char *s)
     }
 }
 
+/* Similar a chequear, pero especializado en variables temporales.
+    Si la var. temp. s no esta en la TS, la agrega con el 'tipo' dado llamando a Colocar(), el cual genera la instruccion Declara
+*/
 void ChequearTemporal(char *s, TIPO tipo)
 {
     /* Si la cadena No esta en la Tabla de Simbolos la agrega,
@@ -723,6 +800,7 @@ void ChequearTemporal(char *s, TIPO tipo)
     }
 }
 
+/* Busca un identificador 'id' en la TS y devuelve su tipo. */
 TIPO ObtenerTipo(char *id)   
 {
     /* Retorna el tipo de dato de la variable id */
@@ -738,6 +816,11 @@ TIPO ObtenerTipo(char *id)
     return TIPONULO; // Si no se encuentra, retorna TIPONULO
 }
 
+/* Obtiene el TIPO de dato de una expresion representada por un REG_EXPRESION.
+    Si es un ID o Temp&, buscara su tipo en la TS usando la funcion ObtenerTipo().
+    Si es una const, devuelve el tipo almacenado en el propio REG_EXPRESION
+    * reg es un puntoero al REG_EXPRESION
+*/
 TIPO ObtenerTipoExp(REG_EXPRESION *reg)
 { 
     if (reg -> clase == ID || strncmp(reg->nombre, "Temp&", 5) == 0)
@@ -751,15 +834,24 @@ TIPO ObtenerTipoExp(REG_EXPRESION *reg)
     return TIPONULO;
 }
 
+/**/
 void Comenzar(void)
 {
     /* Inicializaciones Semanticas */
 }
+
+/* Genera la instrucción final 'Detiene' */
 void Terminar(void)
 {
     /* Genera la instruccion para terminar la ejecucion del programa */
     Generar("Detiene", "", "", "");
 }
+
+/*  Rutina semántica para la asignación (:=).
+    Realiza la comprobacion de tipos entre el lado izquierdo y derecho (pasados en los parametros izq y der).
+    Permite asignacion cuando los tipos son iguales, o en su defecto, compatibles (como el caso real := constante). En otros casos, reporta ErroeSemantico
+    Si la asignacion resulta valida, genera la instruccion "Almacena"
+*/
 void Asignar(REG_EXPRESION izq, REG_EXPRESION der)
 {
     /* Genera la instruccion para la asignacion */
@@ -791,6 +883,8 @@ void Asignar(REG_EXPRESION izq, REG_EXPRESION der)
     //exit(1);
 }
 
+/*  Convierte un valor TIPO a su representacion en cadena
+*/
 char *TipoCadena(TIPO tipo)
 {
     /* Convierte el tipo de dato a cadena */
@@ -807,23 +901,29 @@ char *TipoCadena(TIPO tipo)
     }
 }
 
+/* Genera un nombre unico para una etiqueta y lo guarda en el puntero 'etiqueta'. Utiliza una variable estática global 'numEtiqueta'. */
 void ObtenerEtiqueta(char *etiqueta){ //Obtiene el nombre de la etiqueta
     sprintf(etiqueta, "Etq%d", numEtiqueta++);
 }
 
+/* Genera la instrucción 'Etiqueta' con el nombre de etiqueta dado.*/
 void ImprimirEtiqueta(char *etiqueta){ // Imprime una etiqueta ya generada
     Generar("Etiqueta", etiqueta, "", "");
 }
 
+/* Genera la instrucción de salto incondicional 'Salto' a la etiqueta especificada en el puntero 'etiqueta'.*/
 void Saltar(char *etiqueta) {
-   //Función: Genera un salto incondicional ('Salto') a la etiqueta especificada.
     Generar("Salto", etiqueta, "","");
 }
 
+/*  Genera la instruccion de salto condicional para el caso de las estructuras de control.
+    Toma el REG_EXPRESION del resultado de la condicion y:
+        * Genera el 'SaltoSiFalso' a etiquetaF si esta no esta vacia
+        * Genera el 'SaltoSiVerdadero' a etiquetaV si esta no esta vacia
+    etiquetaV y etiquetaF almacenan la etiqueta destino para los casos cuando la condicion es V o F.
+*/
 void ChequearCondicion(REG_EXPRESION cond, char *etiquetaV, char *etiquetaF) {
-    //Función: Genera los saltos condicionales ('SaltoSiFalso'/'SaltoSiVerdadero')
-    //basados en el valor booleano (0 o 1) de la temporal 'cond'.
-
+    //Saltos basados en el valor booleano (0 o 1) de la temporal 'cond'.
     
     // Si es Falso (0), salta a etiquetaF
     if (strcmp(etiquetaF, "") != 0) {
@@ -838,39 +938,65 @@ void ChequearCondicion(REG_EXPRESION cond, char *etiquetaV, char *etiquetaF) {
 
 
 /**************************Scanner************************************/
+/*  Analizador lexico. Implementado como Autómata Finito Deterministico.
+    Lee caracteres del archivo fuente 'in', utiliza la tabla de transiciones 'tabla' y la funcion columna() para determinar el proximo estado.
+    Al llegar a un estado final, devuelve el TOKEN correspondiente. Almacena el lexema reconocido en el 'buffer' global. Maneja 'ungetc' para lookahead 
+*/
 TOKEN scanner()
 {
+    /***** TABLA DE TRANSICIONES ******
+      Columnas (definidas en la funcion columna()):
+      0: Letra
+      1: Dígito
+      2: +
+      3: -
+      4: (
+      5: )
+      6: ,
+      7: ;
+      8: :
+      9: =
+      10: .
+      11: '
+      12: <
+      13: >
+      14: !
+      15: EOF
+      16: Espacio
+      17: Otro (Error)
+     */
     int tabla[NUMESTADOS][NUMCOLS] = {
-        {1, 3, 5, 6, 7, 8, 9, 10, 11, 21, 15, 18, 25, 22, 28, 13, 0, 14},
-        {1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 16, 4, 4, 4, 4, 4, 4, 4},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 12, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 16, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {17, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 14, 19, 19, 19, 14, 19, 19},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 20, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {24, 24, 24, 24, 24, 24, 24, 24, 24, 23, 24, 24, 24, 24, 24, 24, 24, 24},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {27, 27, 27, 27, 27, 27, 27, 27, 27, 26, 27, 27, 27, 27, 27, 27, 27, 27},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 29, 14, 14, 14, 14, 14, 14, 14, 14},
-        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14}};
+        {1, 3, 5, 6, 7, 8, 9, 10, 11, 21, 15, 18, 25, 22, 28, 13, 0, 14}, // E0: Estado inicial
+        {1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, // E1: Procesando ID (se acepta letra/digito)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14}, // E2: FIN ID 
+        {4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 16, 4, 4, 4, 4, 4, 4, 4}, // E3: Procesando constante entera
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E4: FIN CONSTANTE (Entera)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E5: FIN SUMA (+)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E6: FIN RESTA (-)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E7: FIN PARENIZQUIERDO (
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E8: FIN PARENDERECHO )
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E9: FIN COMA (,)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E10: FIN PUNTOYCOMA (;)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 12, 14, 14, 14, 14, 14, 14, 14, 14},// E11: Leyo ':' (espera '=')
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E12: FIN ASIGNACION (:=)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E13: FIN FDT (EOF)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E14: ESTADO DE ERROR !!!!
+        {14, 16, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E15: Leyo '.' (espera digito)
+        {17, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17},// E16: Procesando parte decimal
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E17: FIN CONSTANTE REAL
+        {19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 14, 19, 19, 19, 14, 19, 19},// E18: Leyo ' (espera caracter)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 20, 14, 14, 14, 14, 14, 14},// E19: Leyo caracter (espera ')
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E20: FIN CONSTANTE CARACTER
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E21: FIN IGUAL (=)
+        {24, 24, 24, 24, 24, 24, 24, 24, 24, 23, 24, 24, 24, 24, 24, 24, 24, 24},// E22: Leyo '>' (espera '=')
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E23: FIN MAYORIGUAL (>=)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E24: FIN MAYOR (>)
+        {27, 27, 27, 27, 27, 27, 27, 27, 27, 26, 27, 27, 27, 27, 27, 27, 27, 27},// E25: Leyo '<' (espera '=')
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E26: FIN MENORIGUAL (<=)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},// E27: FIN MENOR (<)
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 29, 14, 14, 14, 14, 14, 14, 14, 14},// E28: Leyo '!' (espera '=')
+        {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14} // E29: FIN DISTINTO (!=)
+    };
     int car;
     int col;
     int estado = 0;
@@ -883,11 +1009,8 @@ TOKEN scanner()
 
         if (col != 16)
         {
-            //if(estado != 16)
-            //{
             buffer[i] = car;
             i++;
-            //}
         }
     
     } while (!estadoFinal(estado) && !(estado == 14));
@@ -961,12 +1084,16 @@ TOKEN scanner()
     }
     return 0;
 }
+
+/* Determina si un estado del AFD del scanner es final o no. El parametro e recibe el numero de estado a verificar.*/
 int estadoFinal(int e)
 {
     if (e == 0 || e == 1 || e == 3 || e == 11 || e == 14 || e == 15 || e == 16 || e == 18 || e == 19 || e == 22 || e == 25 || e == 28) //Estados NO finales
         return 0;
     return 1;
 }
+
+/* Clasifica un caracter 'c' y retorna el numero de columna correspondiente en la tabla de transiciones del scanner*/
 int columna(int c)
 {
     if (isalpha(c))
@@ -989,6 +1116,7 @@ int columna(int c)
         return 8;
     if (c == '=')
         return 9;
+    //NUEVAS COLUMNAS
     if(c == '.')
         return 10;
     if(c == '\'')
